@@ -1,0 +1,20 @@
+[package]
+name = "tzn-mqtt"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+color-eyre = "0.6.3"
+eyre = "0.6.12"
+futures-util = "0.3.30"
+log = "0.4.22"
+pretty_env_logger = "0.5.0"
+rumqttc = "0.24.0"
+rustls-pemfile = "2.1.2"
+serde = "1.0.204"
+serde_json = "1.0.120"
+tokio = { version = "1.38.0", features = ["sync", "rt"] }
+webpki-roots = "0.26.3"
+x509-parser = "0.16.0"
+zbus = "4.3.1"

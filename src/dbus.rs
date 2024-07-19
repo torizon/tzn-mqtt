@@ -10,7 +10,7 @@ pub(crate) struct ServiceEvent<T: Debug> {
 }
 
 pub mod server {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, time::Duration};
 
     use crate::Result;
     use log::*;
@@ -49,11 +49,9 @@ pub mod server {
         Ok(())
     }
 
-    pub async fn start<T: Sized + Serialize + Sync + Debug + Send + 'static>(
-    ) -> Result<mpsc::Sender<ServiceEvent<T>>> {
-    
+    async fn dbus_connect() -> Result<zbus::InterfaceRef<TznService>> {
         let tzn_service = TznService {};
-        
+
         let connection = zbus::connection::Builder::session()?
             .name("io.torizon.TznService")?
             .serve_at("/io/torizon/TznService", tzn_service)?
@@ -65,20 +63,30 @@ pub mod server {
             .interface::<_, TznService>("/io/torizon/TznService")
             .await?;
 
+        Ok(iface_ref)
+    }
+
+    pub async fn start<T: Sized + Serialize + Sync + Debug + Send + 'static>(
+    ) -> Result<mpsc::Sender<ServiceEvent<T>>> {
         let (tx, mut rx) = mpsc::channel(10);
 
         tokio::task::spawn(async move {
             loop {
-                tokio::select! {
-                    event_o = rx.recv() => {
+                match dbus_connect().await {
+                    Err(err) => {
+                        error!("could not connect to dbus: {:?}", err);
+                    }
+                    Ok(iface) => loop {
+                        let event_o = rx.recv().await;
                         match event_o {
                             Some(event) => {
-                                let ctx = iface_ref.signal_context();
+                                let ctx = iface.signal_context();
 
                                 if let Err(err) = handle_event(&event, ctx).await {
-                                    error!("could not send event to dbus: {err:?}")
+                                    error!("could not send event to dbus: {err:?}");
+                                    break;
                                 }
-                            },
+                            }
                             None => {
                                 error!("channel closed");
                                 break;
@@ -86,6 +94,8 @@ pub mod server {
                         }
                     },
                 }
+
+                tokio::time::sleep(Duration::from_secs(3)).await;
             }
         });
 
@@ -96,6 +106,8 @@ pub mod server {
 // This is just an example of a mock client for our dbus server, for example,
 // RAC or aktualizr could run something like this
 pub mod client {
+    use std::time::Duration;
+
     use futures_util::stream::StreamExt;
     use log::*;
     use zbus::{proxy, Connection};
@@ -122,22 +134,38 @@ pub mod client {
         Ok(())
     }
 
-    pub async fn start() -> crate::Result<()> {
+    async fn dbus_connect() -> crate::Result<TznMessageSigStream<'static>> {
         let connection = Connection::session().await?;
 
         let dbus_proxy = TznServiceProxy::new(&connection).await?;
 
-        let mut events = dbus_proxy.receive_tzn_message_sig().await?;
+        let events = dbus_proxy.receive_tzn_message_sig().await?;
+
+        Ok(events)
+    }
+
+    pub async fn start() -> crate::Result<()> {
 
         tokio::task::spawn(async move {
-            while let Some(msg) = events.next().await {
-                if let Err(err) = handle_event(&msg) {
-                    error!("could not handle {:?}: {:?}", msg, err);
+            loop {
+                match dbus_connect().await {
+                    Ok(mut events) => {
+                        while let Some(msg) = events.next().await {
+                            if let Err(err) = handle_event(&msg) {
+                                info!("could not handle {:?}: {:?}", msg, err);
+                            }
+                        }
+
+                        error!("event stream/dbus finished unexpectedly");
+                    }
+                    Err(err) => warn!("could not connect to dbus: {:?}", err),
                 }
+
+                tokio::time::sleep(Duration::from_secs(3)).await;
             }
-            error!("event stream finished unexpectedly");
         });
 
         Ok(())
     }
+
 }

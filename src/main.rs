@@ -146,9 +146,6 @@ async fn run() -> Result<()> {
 
     let dbus_server_tx: Sender<ServiceEvent<serde_json::Value>> = dbus::server::start().await?;
 
-    // mock dbus client, aktualizr, rac, etc would do this
-    dbus::client::start().await?;
-
     loop {
         // The first time we try to connect we retry a few times because if the device was
         // never provisioned before, the server will reset the connection and the next connection

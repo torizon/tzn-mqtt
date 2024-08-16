@@ -6,6 +6,10 @@ license = "Apache-2.0"
 homepage = "https://github.com/torizon/tzn-mqtt/"
 description = "MQTT to DBus bridge for Torizon OS"
 
+[[example]]
+name = "mock_dbus_client"
+path = "src/examples/mock_dbus_client.rs"
+
 [dependencies]
 color-eyre = "0.6.3"
 eyre = "0.6.12"

@@ -4,6 +4,7 @@ use zbus::{proxy, Connection};
 use tokio;
 use std::time::Duration;
 use futures_util::stream::StreamExt;
+use serde_json;
 
 #[proxy(
     interface = "io.torizon.TznService1",
@@ -20,7 +21,7 @@ fn handle_event(msg: &TznMessageSig) -> Result<()> {
     let json_args: serde_json::Value = serde_json::from_str(args.arg_json)?;
 
     info!(
-        "received signal in dbus. command={} args={}",
+        "Received signal from DBus. Command: '{}', Arguments: {}",
         args.command, json_args
     );
 
@@ -28,28 +29,41 @@ fn handle_event(msg: &TznMessageSig) -> Result<()> {
 }
 
 async fn dbus_connect() -> Result<TznMessageSigStream<'static>> {
+    info!("Connecting to DBus...");
     let connection = Connection::session().await?;
+    info!("Connected to DBus");
+
     let dbus_proxy = TznServiceProxy::new(&connection).await?;
+    info!("DBus proxy created");
+
     let events = dbus_proxy.receive_tzn_message_sig().await?;
+    info!("Listening for events...");
+
     Ok(events)
 }
 
 pub async fn start() -> Result<()> {
+    info!("Starting background task...");
     tokio::task::spawn(async move {
         loop {
             match dbus_connect().await {
                 Ok(mut events) => {
+                    info!("Event stream started successfully");
+
                     while let Some(msg) = events.next().await {
                         if let Err(err) = handle_event(&msg) {
-                            info!("could not handle {:?}: {:?}", msg, err);
+                            error!("Failed to handle message: {:?}. Error: {:?}", msg, err);
                         }
                     }
 
-                    error!("event stream/dbus finished unexpectedly");
+                    error!("Event stream/DBus finished unexpectedly");
                 }
-                Err(err) => warn!("could not connect to dbus: {:?}", err),
+                Err(err) => {
+                    error!("Failed to connect to DBus: {:?}", err);
+                }
             }
 
+            info!("Retrying connection in 3 seconds...");
             tokio::time::sleep(Duration::from_secs(3)).await;
         }
     });
@@ -59,7 +73,19 @@ pub async fn start() -> Result<()> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    color_eyre::install()?; // or eyre::install() if you're using eyre
+    
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "trace");
+    }
+
+    pretty_env_logger::init_timed();
+    color_eyre::install()?;
+
+    info!("Application starting...");
     start().await?;
+
+    tokio::signal::ctrl_c().await?;
+    info!("Received Ctrl+C, shutting down...");
+
     Ok(())
 }

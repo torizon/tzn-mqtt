@@ -103,8 +103,8 @@ async fn run() -> Result<()> {
     let (device_id, client_config) = if cfg!(feature = "test_mode") {
         ("tzntestmqtt".to_owned(), None)
     } else {
-        let client_cert_path = std::env::var("TZN_CLIENT_CERT").unwrap_or("device-files/dev/client.crt".to_owned());
-        let client_key_path = std::env::var("TZN_CLIENT_KEY").unwrap_or("device-files/dev/client.key".to_owned());
+        let client_cert_path = std::env::var("TZN_CLIENT_CERT").unwrap_or("/var/sota/import/client.pem".to_owned());
+        let client_key_path = std::env::var("TZN_CLIENT_KEY").unwrap_or("/var/sota/import/pkey.pem".to_owned());
     
         let root_cert_store = rumqttc::tokio_rustls::rustls::RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),

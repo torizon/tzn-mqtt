@@ -1523,6 +1523,7 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "webpki-roots",
  "x509-parser",

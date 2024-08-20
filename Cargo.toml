@@ -25,5 +25,8 @@ webpki-roots = "0.26.3"
 x509-parser = "0.16.0"
 zbus = "4.3.1"
 
+[dev-dependencies]
+tempfile = "3.4"
+
 [features]
 test_mode = []

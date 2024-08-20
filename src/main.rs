@@ -7,12 +7,12 @@
 #![warn(clippy::print_stdout)]
 #![warn(clippy::print_stderr)]
 
-use std::{io::ErrorKind, path::Path, time::Duration};
+use std::{io::ErrorKind, time::Duration};
 
 use dbus::ServiceEvent;
 use log::*;
 
-use eyre::{Context, OptionExt};
+use eyre::Context;
 use rumqttc::{
     tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer},
     ConnectionError,
@@ -20,81 +20,12 @@ use rumqttc::{
 use tokio::sync::mpsc::Sender;
 
 mod dbus;
+mod utils;
+mod utils_test;
+
+use utils::{load_cert, load_private_key, read_device_id, parse_payload};
 
 type Result<T> = std::result::Result<T, eyre::Report>;
-
-// blocking
-fn load_cert<P: AsRef<Path>>(filename: P) -> Result<CertificateDer<'static>> {
-    let certfile =
-        std::fs::File::open(&filename).context(format!("opening {:?}", filename.as_ref()))?;
-    let mut reader = std::io::BufReader::new(&certfile);
-    let mut all_certs: Vec<CertificateDer> = rustls_pemfile::certs(&mut reader).flatten().collect();
-
-    if all_certs.len() != 1 {
-        eyre::bail!(
-            "invalid number of certificates in {:?}, expected 1 got {:?}",
-            filename.as_ref(),
-            all_certs.len()
-        );
-    }
-
-    #[allow(clippy::unwrap_used)] // length checked
-    Ok(all_certs.pop().unwrap())
-}
-
-// blocking
-fn load_private_key<P: AsRef<Path>>(filename: P) -> Result<PrivateKeyDer<'static>> {
-    let keyfile =
-        std::fs::File::open(&filename).context(format!("read {:?}", filename.as_ref()))?;
-    let mut reader = std::io::BufReader::new(keyfile);
-
-    loop {
-        match rustls_pemfile::read_one(&mut reader)? {
-            Some(rustls_pemfile::Item::Pkcs1Key(key)) => return Ok(key.into()),
-            Some(rustls_pemfile::Item::Pkcs8Key(key)) => return Ok(key.into()),
-            Some(rustls_pemfile::Item::Sec1Key(key)) => return Ok(key.into()),
-            None => break,
-            _ => {}
-        }
-    }
-
-    eyre::bail!(
-        "no keys found in {:?} (encrypted keys not supported)",
-        filename.as_ref()
-    );
-}
-
-fn read_device_id(cert: &CertificateDer) -> Result<String> {
-    use x509_parser::prelude::*;
-
-    let (_, res) = X509Certificate::from_der(cert)?;
-
-    let common_name = res
-        .subject
-        .iter_common_name()
-        .flat_map(|c| c.as_str())
-        .next();
-
-    Ok(common_name
-        .ok_or(eyre::eyre!("Could not extract uuid from certificate CN"))?
-        .to_owned())
-}
-
-fn parse_payload(payload: &[u8]) -> Result<(String, serde_json::Value)> {
-    let mut payload_json: serde_json::Value = serde_json::from_slice(payload)?;
-
-    let args_json = payload_json
-        .pointer_mut("/args")
-        .ok_or_eyre("message payload did not include `args`")?
-        .take();
-
-    let command = payload_json
-        .pointer("/command")
-        .and_then(|s| s.as_str().map(|s| s.to_owned()))
-        .ok_or_eyre("message payload did not include `command`")?;
-
-    Ok((command, args_json))
-}
 
 async fn run() -> Result<()> {
     let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.dev.torizon.io".to_owned());

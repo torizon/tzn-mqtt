@@ -99,38 +99,44 @@ fn parse_payload(payload: &[u8]) -> Result<(String, serde_json::Value)> {
 async fn run() -> Result<()> {
     let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.dev.torizon.io".to_owned());
     let mqtt_port = std::env::var("TZN_MQTT_PORT").unwrap_or("8883".to_owned());
-    let client_cert_path = std::env::var("TZN_CLIENT_CERT").unwrap_or("device-files/dev/client.crt".to_owned());
-    let client_key_path = std::env::var("TZN_CLIENT_KEY").unwrap_or("device-files/dev/client.key".to_owned());
-
-    let root_cert_store = rumqttc::tokio_rustls::rustls::RootCertStore {
-        roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+    
+    let (device_id, client_config) = if cfg!(feature = "test_mode") {
+        ("tzntestmqtt".to_owned(), None)
+    } else {
+        let client_cert_path = std::env::var("TZN_CLIENT_CERT").unwrap_or("device-files/dev/client.crt".to_owned());
+        let client_key_path = std::env::var("TZN_CLIENT_KEY").unwrap_or("device-files/dev/client.key".to_owned());
+    
+        let root_cert_store = rumqttc::tokio_rustls::rustls::RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+        };
+    
+        let client_cert = load_cert(&client_cert_path)?;
+        let client_key = load_private_key(&client_key_path)?;
+    
+        let device_id = read_device_id(&client_cert)?;
+    
+        let client_config = rumqttc::tokio_rustls::rustls::ClientConfig::builder()
+            .with_root_certificates(root_cert_store)
+            .with_client_auth_cert(vec![client_cert], client_key)?;
+    
+        (device_id, Some(client_config))
     };
-
-    let client_cert = load_cert(&client_cert_path)?;
-
-    let client_key = load_private_key(&client_key_path)?;
-
-    let device_id = read_device_id(&client_cert)?;
-
-    let client_config = rumqttc::tokio_rustls::rustls::ClientConfig::builder()
-        .with_root_certificates(root_cert_store)
-        .with_client_auth_cert(vec![client_cert], client_key)?;
-
+    
     info!("connecting to {device_id}@{mqtt_hostname}:{mqtt_port}");
-
+    
     let mut mqttoptions = rumqttc::MqttOptions::new(
         &device_id,
         mqtt_hostname,
-        mqtt_port
-            .parse()
-            .context("could not parse mqtt port number")?,
+        mqtt_port.parse().context("could not parse mqtt port number")?,
     );
-
+    
     mqttoptions.set_keep_alive(std::time::Duration::from_secs(5));
-
-    mqttoptions.set_transport(rumqttc::Transport::tls_with_config(
-        rumqttc::TlsConfiguration::Rustls(std::sync::Arc::new(client_config)),
-    ));
+    
+    if let Some(client_config) = client_config {
+        mqttoptions.set_transport(rumqttc::Transport::tls_with_config(
+            rumqttc::TlsConfiguration::Rustls(std::sync::Arc::new(client_config)),
+        ));
+    }
 
     let (mqtt_client, mut eventloop) = rumqttc::AsyncClient::new(mqttoptions, 10);
 

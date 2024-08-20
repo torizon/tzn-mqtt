@@ -24,3 +24,6 @@ tokio = { version = "1.38.0", features = ["sync", "rt", "signal", "rt-multi-thre
 webpki-roots = "0.26.3"
 x509-parser = "0.16.0"
 zbus = "4.3.1"
+
+[features]
+test_mode = []

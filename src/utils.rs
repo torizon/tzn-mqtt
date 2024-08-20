@@ -11,6 +11,8 @@ use serde_json;
 use crate::CertificateDer;
 use crate::PrivateKeyDer;
 
+mod tests;
+
 // blocking
 pub fn load_cert<P: AsRef<Path>>(filename: P) -> Result<CertificateDer<'static>> {
     let certfile =

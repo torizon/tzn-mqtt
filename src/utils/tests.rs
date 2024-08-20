@@ -1,18 +1,16 @@
 // Copyright 2024 Toradex A.G.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::{Path};
-
-use crate::utils::{load_cert, load_private_key, read_device_id, parse_payload};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    use std::path::Path;
+    use crate::utils::{load_cert, load_private_key, read_device_id, parse_payload};
+    
 
     #[test]
     fn test_load_cert() {
-        let cert_path = Path::new("src/test_data/client.crt");
+        let cert_path = Path::new("src/utils/test_data/client.crt");
         let result = load_cert(cert_path);
         assert!(result.is_ok(), "Failed to load certificate: {:?}", result.err());
     
@@ -22,14 +20,14 @@ mod tests {
 
     #[test]
     fn test_load_private_key() {
-        let key_path = Path::new("src/test_data/client.key");
+        let key_path = Path::new("src/utils/test_data/client.key");
         let result = load_private_key(key_path);
         assert!(result.is_ok(), "Failed to load private key: {:?}", result.err());
     }
 
     #[test]
     fn test_read_device_id() {
-        let cert_path = Path::new("src/test_data/client.crt");
+        let cert_path = Path::new("src/utils/test_data/client.crt");
         let cert = load_cert(cert_path).expect("Failed to load cert");
         let result = read_device_id(&cert);
         assert!(result.is_ok(), "Failed to read device id: {:?}", result.err());

@@ -21,7 +21,6 @@ use tokio::sync::mpsc::Sender;
 
 mod dbus;
 mod utils;
-mod utils_test;
 
 use utils::{load_cert, load_private_key, read_device_id, parse_payload};
 

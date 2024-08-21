@@ -1518,6 +1518,7 @@ dependencies = [
  "eyre",
  "futures-util",
  "log",
+ "nix",
  "pretty_env_logger",
  "rumqttc",
  "rustls-pemfile",

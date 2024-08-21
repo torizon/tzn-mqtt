@@ -4,6 +4,9 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use nix::unistd::{self, Uid, Gid};
+use std::ffi::CString;
+use log::info;
 use rustls_pemfile;
 use eyre::{Context, Result, OptionExt};
 use x509_parser::prelude::*;
@@ -82,4 +85,35 @@ pub fn parse_payload(payload: &[u8]) -> Result<(String, serde_json::Value)> {
         .ok_or_eyre("message payload did not include `command`")?;
 
     Ok((command, args_json))
+}
+
+pub fn drop_privileges() -> Result<()> {
+    if !Uid::current().is_root() {
+        info!("No need to drop privileges, current user is not root");
+        return Ok(());
+    }
+
+    let user = "1000";
+    let group = "1000";
+
+    let ugroup = unistd::Group::from_gid(Gid::from_raw(1000))?
+        .ok_or(eyre::eyre!("Could not get group {group}"))?;
+    let uuser = unistd::User::from_uid(Uid::from_raw(1000))?
+        .ok_or(eyre::eyre!("Could not get user {user}"))?;
+
+    let user_name_cstring = CString::new(user)?;
+
+    unistd::initgroups(&user_name_cstring, ugroup.gid)?;
+
+    unistd::setgid(ugroup.gid)?;
+
+    unistd::setuid(uuser.uid)?;
+
+    if unistd::setuid(Uid::from_raw(0)).is_ok() {
+        eyre::bail!("Could not drop privileges, can still change back to uid 0");
+    }
+
+    info!("Dropped privileges to {user}:{group}");
+
+    Ok(())
 }

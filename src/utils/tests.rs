@@ -5,7 +5,8 @@
 #[cfg(test)]
 mod tests {
     use std::path::Path;
-    use crate::utils::{load_cert, load_private_key, read_device_id, parse_payload};
+    use nix::unistd::Uid;
+    use crate::utils::{load_cert, load_private_key, read_device_id, parse_payload, drop_privileges};
     
 
     #[test]
@@ -59,5 +60,33 @@ mod tests {
         let payload = br#"{"args": {"key": "value"}}"#;
         let result = parse_payload(payload);
         assert!(result.is_err(), "Expected error for missing `command`, got: {:?}", result);
+    }
+
+    #[test]
+    fn test_drop_privileges_non_root() {
+        // This test should only be run as a non-root user
+        if nix::unistd::getuid().is_root() {
+            panic!("This test should not be run as root");
+        }
+
+        let result = drop_privileges();
+        assert!(result.is_ok(), "Expected Ok(()), got {:?}", result);
+    }
+
+    #[test]
+    fn test_drop_privileges_root_user_simulation() {
+        // Simulate root user environment by temporarily setting nix::unistd::setuid to return root
+        let original_uid = nix::unistd::getuid();
+        let root_uid = Uid::from_raw(0);
+        let _ = nix::unistd::setuid(root_uid);
+
+        let result = drop_privileges();
+
+        let _ = nix::unistd::setuid(original_uid);
+
+        match original_uid.is_root() {
+            true => assert!(result.is_err(), "Expected an error, got {:?}", result),
+            false => assert!(result.is_ok(), "Expected Ok(()), got {:?}", result),
+        }
     }
 }

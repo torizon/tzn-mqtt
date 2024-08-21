@@ -52,6 +52,11 @@ async fn run() -> Result<()> {
         (device_id, Some(client_config))
     };
     
+    if let Err(e) = utils::drop_privileges() {
+        eprintln!("Failed to drop privileges: {}", e);
+        std::process::exit(1);
+    }
+
     info!("connecting to {device_id}@{mqtt_hostname}:{mqtt_port}");
     
     let mut mqttoptions = rumqttc::MqttOptions::new(

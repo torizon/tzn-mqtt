@@ -27,7 +27,7 @@ use utils::{load_cert, load_private_key, read_device_id, parse_payload};
 type Result<T> = std::result::Result<T, eyre::Report>;
 
 async fn run() -> Result<()> {
-    let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.dev.torizon.io".to_owned());
+    let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.torizon.io".to_owned());
     let mqtt_port = std::env::var("TZN_MQTT_PORT").unwrap_or("8883".to_owned());
     
     let (device_id, client_config) = if cfg!(feature = "test_mode") {

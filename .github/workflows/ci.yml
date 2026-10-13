@@ -3,7 +3,7 @@ name: Build and Test
 on: push
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -11,13 +11,29 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Build main project
-        run: cargo build --release
-
-      - name: Build and test examples
-        run: |
-          cargo build --examples
+        with:
+          toolchain: "1.75"  # needs to be updated if rust-toolchain.toml is updated
 
       - name: Run tests
-        run: cargo test
+        run: cargo test --target x86_64-unknown-linux-gnu
+
+  build-aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.75"  # needs to be updated if rust-toolchain.toml is updated
+          targets: aarch64-unknown-linux-musl
+
+      - name: Install musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: cargo build
+        run: cargo build --target aarch64-unknown-linux-musl --release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_aarch64_unknown_linux_musl: musl-gcc

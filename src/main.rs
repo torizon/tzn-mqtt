@@ -39,9 +39,11 @@ async fn run() -> Result<()> {
         let client_key_path =
             std::env::var("TZN_CLIENT_KEY").unwrap_or("/var/sota/import/pkey.pem".to_owned());
 
-        let root_cert_store = rumqttc::tokio_rustls::rustls::RootCertStore {
-            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
-        };
+        let mut root_cert_store = rumqttc::tokio_rustls::rustls::RootCertStore::empty();
+        let native_certs = rustls_native_certs::load_native_certs()
+            .context("could not load native root certificates")?;
+        let (added, ignored) = root_cert_store.add_parsable_certificates(native_certs);
+        debug!("loaded {added} native root certificates, ignored {ignored}");
 
         let client_cert = load_cert(&client_cert_path)?;
         let client_key = load_private_key(&client_key_path)?;

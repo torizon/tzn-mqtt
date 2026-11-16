@@ -31,6 +31,15 @@ async fn run() -> Result<()> {
     let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.torizon.io".to_owned());
     let mqtt_port = std::env::var("TZN_MQTT_PORT").unwrap_or("8883".to_owned());
 
+    let mqtt_keepalive_secs: u64 = std::env::var("TZN_MQTT_KEEPALIVE")
+        .ok()
+        .map(|v| v.parse())
+        .transpose()
+        .wrap_err("invalid TZN_MQTT_KEEPALIVE")?
+        .unwrap_or(5);
+
+    let mqtt_keepalive = Duration::from_secs(mqtt_keepalive_secs);
+
     let (device_id, client_config) = if cfg!(feature = "test_mode") {
         ("tzntestmqtt".to_owned(), None)
     } else {
@@ -72,7 +81,7 @@ async fn run() -> Result<()> {
             .context("could not parse mqtt port number")?,
     );
 
-    mqttoptions.set_keep_alive(std::time::Duration::from_secs(5));
+    mqttoptions.set_keep_alive(mqtt_keepalive);
 
     if let Some(client_config) = client_config {
         mqttoptions.set_transport(rumqttc::Transport::tls_with_config(

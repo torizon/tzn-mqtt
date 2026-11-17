@@ -36,7 +36,7 @@ async fn run() -> Result<()> {
         .map(|v| v.parse())
         .transpose()
         .wrap_err("invalid TZN_MQTT_KEEPALIVE")?
-        .unwrap_or(5);
+        .unwrap_or(20);
 
     let mqtt_keepalive = Duration::from_secs(mqtt_keepalive_secs);
 

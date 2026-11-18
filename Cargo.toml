@@ -3,6 +3,7 @@ name = "tzn-mqtt"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
+build = "build.rs"
 license = "Apache-2.0"
 homepage = "https://github.com/torizon/tzn-mqtt/"
 description = "MQTT to DBus bridge for Torizon OS"
@@ -22,9 +23,13 @@ rustls-native-certs = "0.7.3"
 x509-parser = "0.16.0"
 zbus = { version = "4.4", default-features = false, features = ["tokio"] }
 nix = { version = "0.29.0", features = ["user"] }
+url = "2.3.1"
 
 [dev-dependencies]
 tempfile = "3.4"
 
 [features]
 test_mode = []
+
+[build-dependencies]
+vergen = "7.5.1"

@@ -28,6 +28,13 @@ use utils::{load_cert, load_private_key, parse_payload, read_device_id};
 pub(crate) type Result<T> = std::result::Result<T, eyre::Report>;
 
 async fn run() -> Result<()> {
+    log::info!(
+        "tzn-mqtt ({}; rustc-{}-{})",
+        env!("VERGEN_GIT_SHA_SHORT"),
+        env!("VERGEN_RUSTC_SEMVER"),
+        env!("VERGEN_CARGO_TARGET_TRIPLE"),
+    );
+
     let mqtt_hostname = std::env::var("TZN_MQTT_HOST").unwrap_or("mqtt.torizon.io".to_owned());
     let mqtt_port = std::env::var("TZN_MQTT_PORT").unwrap_or("8883".to_owned());
 
